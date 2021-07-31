@@ -11,18 +11,25 @@ library(sf)
 ee_Initialize(email = 'antonybarja8@gmail.com',drive = T)
 
 # 1.Study area ------------------------------------------------------------
-study_area <- st_read('crudo/piura.gpkg')
-study_area_ee <- study_area %>% 
-  st_bbox() %>% 
-  st_as_sfc() %>% 
-  sf_as_ee()
+
+list_names <- paste0('./crudo/',list.files(path = 'crudo/',pattern = '.gpkg$'))
+study_area <- lapply(list_names,st_read)
+study_area_ee <- list()
+
+for (i in 1:length(study_area)) {
+  sf_to_ee <- study_area[[i]] %>% 
+    st_bbox() %>% 
+    st_as_sfc() %>% 
+    sf_as_ee() 
+  study_area_ee[[i]] <- sf_to_ee
+}
 
 # 02- Get SO2 information -------------------------------------------------
 # Edite only start_* and end_* date
 start_year <- 2020
 end_year <- 2020
-start_month <- 04
-end_month <- 04
+start_month <- 8
+end_month <- 11
 
 months <- ee$List$sequence(start_month, end_month)
 years <- ee$List$sequence(start_year, end_year)
@@ -47,13 +54,33 @@ so2_list <- ee$
     })
   )$flatten())
 
-so2_bands <- so2_list$
-  filter(ee$Filter$inList("month", c(1:12)))$
-  map(function(x){x$clip(study_area_ee)})$toBands()
+so2_get_img <- list()
 
-so2_to_raster <- ee_as_raster(
-  image = so2_bands,
-  maxPixels = 10e12, 
-  region = study_area_ee,
-  scale = 5000,
-  dsn = paste0('SO2_piura',start_year,'_',start_month,'.tif'))
+for(i in 1:length(study_area_ee)){
+  so2_bands <- so2_list$
+    filter(ee$Filter$inList("month", c(1:12)))$
+    map(function(x){x$clip(study_area_ee[[i]])})$
+    mean() 
+  so2_get_img[[i]] <- so2_bands 
+}
+
+for (i in 1:length(so2_get_img)) {
+  ee_as_raster(
+    image = so2_get_img[[i]],
+    maxPixels = 10e12, 
+    region = study_area_ee[[i]],
+    scale = 5500,
+    dsn = paste0(
+      'SO2_',
+      substr(list.files(path = 'crudo/',pattern = '.gpkg$'),1,2)[i],
+      '_',
+      start_month,
+      '_to_',
+      end_month,
+      '_',
+      start_year,
+      '.tif')
+    )
+}
+  
+
