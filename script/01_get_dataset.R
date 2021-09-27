@@ -1,21 +1,22 @@
-library(tidyverse)
-library(ggspatial)
-library(rasterVis)
-library(patchwork)
-library(cptcity)
-library(raster)
-library(ggplot2)
-library(rgee)
-library(sf)
+library(tidyverse) # pkg for data science
+library(rgee)      # pkg for spatial analysis with Earth Engine
+library(sf)        # pkg for spatial data - vector
+ee_Initialize()    # User of Earth Engine
 
-ee_Initialize(email = 'antonybarja8@gmail.com',drive = T)
 
-# 1.Study area ------------------------------------------------------------
+# 1.Reading spatial data - study area -------------------------------------
 
-list_names <- paste0('./crudo/',list.files(path = 'crudo/',pattern = '.gpkg$'))
+list_names <- paste0(
+  '../study_area/',
+  list.files(
+    path = '../study_area/',
+    pattern = '.gpkg$'
+    )
+  )
+
 study_area <- lapply(list_names,st_read)
 study_area_ee <- list()
-
+# sf to featurecollection 
 for (i in 1:length(study_area)) {
   sf_to_ee <- study_area[[i]] %>% 
     st_bbox() %>% 
@@ -24,17 +25,18 @@ for (i in 1:length(study_area)) {
   study_area_ee[[i]] <- sf_to_ee
 }
 
-# 02- Get SO2 information -------------------------------------------------
-# Edite only start_* and end_* date
-start_year <- 2020
-end_year <- 2020
-start_month <- 8
-end_month <- 11
+
+# 2.Get NO2 information ---------------------------------------------------
+# Edited only start_* and end_* date
+start_year <- 2021
+end_year <- 2021
+start_month <- 08
+end_month <- 08
 
 months <- ee$List$sequence(start_month, end_month)
 years <- ee$List$sequence(start_year, end_year)
-so2db <- ee$ImageCollection("COPERNICUS/S5P/NRTI/L3_SO2")$
-  select("SO2_column_number_density")
+so2db <- ee$ImageCollection("COPERNICUS/S5P/NRTI/L3_NO2")$
+  select("NO2_column_number_density")
 
 so2_list <- ee$
   ImageCollection$
@@ -64,15 +66,19 @@ for(i in 1:length(study_area_ee)){
   so2_get_img[[i]] <- so2_bands 
 }
 
+
 for (i in 1:length(so2_get_img)) {
+  if(0 == dir.exists("../Download_data")) {
+    dir.create("../Download_data")
+  } 
   ee_as_raster(
     image = so2_get_img[[i]],
     maxPixels = 10e12, 
     region = study_area_ee[[i]],
     scale = 5500,
     dsn = paste0(
-      'SO2_',
-      substr(list.files(path = 'crudo/',pattern = '.gpkg$'),1,2)[i],
+      '../Download_data/',
+      substr(list.files(path = '../study_area/',pattern = '.gpkg$'),1,2)[i],
       '_',
       start_month,
       '_to_',
