@@ -29,4 +29,4 @@ Ica | IDEP - IGN | [**geoportal-IGN**](https://www.idep.gob.pe/geovisor/df2/)
 * `extrafont`
 
 ## **Results**
-<p align="center"><a href="#"><img src= "./img/arequipa.png" width="100%"></a></p>
+<p align="center"><a href="#"><img src= "./img/Arequipa.png" width="100%"></a></p>
